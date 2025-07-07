@@ -8,17 +8,18 @@ export interface User {
 export interface Comment {
   id: string;
   content: string;
-  author: string;
-  createdAt: Date;
-  postId: string;
+  author_id: string;
+  author_name: string;
+  created_at: string;
+  post_id: string;
 }
 
 export interface Post {
   id: string;
   title: string;
   content: string;
-  author: string;
-  createdAt: Date;
-  likes?: number;
-  comments?: Comment[];
+  author_id: string;
+  author_name: string;
+  created_at: string;
+  likes: number;
 }

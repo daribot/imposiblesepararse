@@ -1,8 +1,7 @@
 
 import { useState } from 'react';
-import { X, Type, FileText } from 'lucide-react';
+import { X, Type, FileText, AlertCircle } from 'lucide-react';
 import { usePostStore } from '@/store/postStore';
-import { useAuthStore } from '@/store/authStore';
 
 interface CreatePostModalProps {
   isOpen: boolean;
@@ -14,24 +13,34 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
     title: '',
     content: ''
   });
-  const { user } = useAuthStore();
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { createPost } = usePostStore();
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
     
-    if (!user) return;
-    
-    createPost({
-      title: formData.title,
-      content: formData.content,
-      author: user.name
-    });
-    
-    setFormData({ title: '', content: '' });
-    onClose();
+    try {
+      const result = await createPost({
+        title: formData.title,
+        content: formData.content
+      });
+      
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setFormData({ title: '', content: '' });
+        onClose();
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -39,6 +48,7 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
       ...prev,
       [e.target.name]: e.target.value
     }));
+    if (error) setError('');
   };
 
   return (
@@ -57,6 +67,14 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
           </button>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
+            <AlertCircle size={16} className="text-red-500 flex-shrink-0" />
+            <span className="text-red-700 text-sm">{error}</span>
+          </div>
+        )}
+
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div>
@@ -73,6 +91,8 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-lg"
                 placeholder="¿De qué quieres hablar?"
                 required
+                disabled={loading}
+                maxLength={200}
               />
             </div>
           </div>
@@ -91,6 +111,8 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors resize-none"
                 placeholder="Comparte tus ideas, experiencias o conocimientos con la comunidad..."
                 required
+                disabled={loading}
+                maxLength={5000}
               />
             </div>
           </div>
@@ -116,15 +138,16 @@ export const CreatePostModal = ({ isOpen, onClose }: CreatePostModalProps) => {
               type="button"
               onClick={onClose}
               className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              disabled={loading}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              disabled={!formData.title.trim() || !formData.content.trim()}
-              className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] transition-all duration-200 shadow-lg"
+              disabled={!formData.title.trim() || !formData.content.trim() || loading}
+              className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] transition-all duration-200 shadow-lg disabled:transform-none"
             >
-              Publicar Post
+              {loading ? 'Publicando...' : 'Publicar Post'}
             </button>
           </div>
         </form>

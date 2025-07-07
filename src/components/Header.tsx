@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LogIn, Plus, User, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 
@@ -9,8 +9,37 @@ interface HeaderProps {
 }
 
 export const Header = ({ onAuthClick, onCreatePost }: HeaderProps) => {
-  const { user, logout } = useAuthStore();
+  const { user, logout, loading, initialize } = useAuthStore();
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  const handleLogout = async () => {
+    await logout();
+    setShowUserMenu(false);
+  };
+
+  const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuario';
+
+  if (loading) {
+    return (
+      <header className="bg-white shadow-sm border-b sticky top-0 z-50">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">B</span>
+              </div>
+              <h1 className="text-xl font-bold text-gray-900">BlogCommunity</h1>
+            </div>
+            <div className="w-8 h-8 bg-gray-200 rounded-lg animate-pulse"></div>
+          </div>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="bg-white shadow-sm border-b sticky top-0 z-50">
@@ -58,21 +87,18 @@ export const Header = ({ onAuthClick, onCreatePost }: HeaderProps) => {
                       <User size={16} className="text-white" />
                     </div>
                     <span className="hidden sm:inline text-gray-700 font-medium">
-                      {user.name}
+                      {userName}
                     </span>
                   </button>
                   
                   {showUserMenu && (
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border py-2 z-10">
                       <div className="px-4 py-2 border-b">
-                        <p className="font-medium text-gray-900">{user.name}</p>
+                        <p className="font-medium text-gray-900">{userName}</p>
                         <p className="text-sm text-gray-500">{user.email}</p>
                       </div>
                       <button
-                        onClick={() => {
-                          logout();
-                          setShowUserMenu(false);
-                        }}
+                        onClick={handleLogout}
                         className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 flex items-center space-x-2"
                       >
                         <LogOut size={16} />

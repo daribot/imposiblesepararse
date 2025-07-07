@@ -1,51 +1,92 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-}
+import { supabase } from '@/lib/supabase';
+import type { User } from '@supabase/supabase-js';
 
 interface AuthState {
   user: User | null;
-  login: (email: string, password: string) => void;
-  register: (name: string, email: string, password: string) => void;
-  logout: () => void;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<{ error?: string }>;
+  register: (name: string, email: string, password: string) => Promise<{ error?: string }>;
+  logout: () => Promise<void>;
+  initialize: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
+      loading: true,
       
-      login: (email: string, password: string) => {
-        // Simulación de autenticación
-        const mockUser: User = {
-          id: Date.now().toString(),
-          name: email.split('@')[0],
-          email
-        };
-        set({ user: mockUser });
+      initialize: async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          set({ user: session?.user || null, loading: false });
+          
+          // Listen for auth changes
+          supabase.auth.onAuthStateChange((event, session) => {
+            set({ user: session?.user || null, loading: false });
+          });
+        } catch (error) {
+          console.error('Auth initialization error:', error);
+          set({ loading: false });
+        }
       },
       
-      register: (name: string, email: string, password: string) => {
-        // Simulación de registro
-        const mockUser: User = {
-          id: Date.now().toString(),
-          name,
-          email
-        };
-        set({ user: mockUser });
+      login: async (email: string, password: string) => {
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          
+          if (error) {
+            return { error: error.message };
+          }
+          
+          set({ user: data.user });
+          return {};
+        } catch (error) {
+          return { error: 'An unexpected error occurred' };
+        }
       },
       
-      logout: () => {
-        set({ user: null });
+      register: async (name: string, email: string, password: string) => {
+        try {
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                name: name,
+              },
+            },
+          });
+          
+          if (error) {
+            return { error: error.message };
+          }
+          
+          set({ user: data.user });
+          return {};
+        } catch (error) {
+          return { error: 'An unexpected error occurred' };
+        }
+      },
+      
+      logout: async () => {
+        try {
+          await supabase.auth.signOut();
+          set({ user: null });
+        } catch (error) {
+          console.error('Logout error:', error);
+        }
       }
     }),
     {
-      name: 'auth-storage'
+      name: 'auth-storage',
+      partialize: (state) => ({ user: state.user }),
     }
   )
 );

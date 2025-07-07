@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { X, Mail, Lock, User } from 'lucide-react';
+import { X, Mail, Lock, User, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 
 interface AuthModalProps {
@@ -15,21 +15,36 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
     email: '',
     password: ''
   });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login, register } = useAuthStore();
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
     
-    if (isLogin) {
-      login(formData.email, formData.password);
-    } else {
-      register(formData.name, formData.email, formData.password);
+    try {
+      let result;
+      if (isLogin) {
+        result = await login(formData.email, formData.password);
+      } else {
+        result = await register(formData.name, formData.email, formData.password);
+      }
+      
+      if (result.error) {
+        setError(result.error);
+      } else {
+        onClose();
+        setFormData({ name: '', email: '', password: '' });
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
     }
-    
-    onClose();
-    setFormData({ name: '', email: '', password: '' });
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,6 +52,8 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
       ...prev,
       [e.target.name]: e.target.value
     }));
+    // Clear error when user starts typing
+    if (error) setError('');
   };
 
   return (
@@ -55,6 +72,14 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
           </button>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
+            <AlertCircle size={16} className="text-red-500 flex-shrink-0" />
+            <span className="text-red-700 text-sm">{error}</span>
+          </div>
+        )}
+
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {!isLogin && (
@@ -72,6 +97,7 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   placeholder="Tu nombre"
                   required={!isLogin}
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -91,6 +117,7 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                 placeholder="tu@email.com"
                 required
+                disabled={loading}
               />
             </div>
           </div>
@@ -109,15 +136,18 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                 placeholder="••••••••"
                 required
+                disabled={loading}
+                minLength={6}
               />
             </div>
           </div>
 
           <button
             type="submit"
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transform hover:scale-[1.02] transition-all duration-200 shadow-lg"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transform hover:scale-[1.02] transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
-            {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
+            {loading ? 'Procesando...' : (isLogin ? 'Iniciar Sesión' : 'Crear Cuenta')}
           </button>
         </form>
 
@@ -126,8 +156,12 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
           <p className="text-gray-600">
             {isLogin ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'}
             <button
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setError('');
+              }}
               className="text-blue-600 font-medium hover:text-blue-700 ml-1"
+              disabled={loading}
             >
               {isLogin ? 'Regístrate' : 'Inicia sesión'}
             </button>

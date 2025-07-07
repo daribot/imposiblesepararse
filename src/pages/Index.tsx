@@ -10,12 +10,18 @@ import { usePostStore } from '@/store/postStore';
 const Index = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const { user } = useAuthStore();
-  const { posts, loading, fetchPosts } = usePostStore();
+  const { user, loading: authLoading, initialize } = useAuthStore();
+  const { posts, loading: postsLoading, fetchPosts } = usePostStore();
 
   useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+    initialize();
+  }, [initialize]);
+
+  useEffect(() => {
+    if (!authLoading) {
+      fetchPosts();
+    }
+  }, [fetchPosts, authLoading]);
 
   const handleCreatePost = () => {
     if (!user) {
@@ -25,7 +31,7 @@ const Index = () => {
     }
   };
 
-  if (loading) {
+  if (authLoading || postsLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
         <Header onAuthClick={() => setShowAuthModal(true)} onCreatePost={handleCreatePost} />
